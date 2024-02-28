@@ -28,9 +28,8 @@ ActorToPrimitiveComponentLayout.ReadUnsafe(
 	&SpawnTask]
 	(const auto& Map)
 {
-	// However reading is totally safe! No lock required.
+	// However reading is free, assuming nothing else is writing! No lock required.
 	// ReadUnsafe will assert if a write is being performed,
-	// since ReadUnsafe is completely lockless.
 	PrimitiveLayouts = Map.Find(SpawnTask.ActorToSpawn);
 });
 ```
