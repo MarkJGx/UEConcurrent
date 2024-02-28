@@ -1,6 +1,6 @@
 # Unreal Concurrent
 > [!NOTE]
-> A code library that aims to make Unreal concurrency code safer and easier.
+> A code library plugin that aims to make Unreal concurrency code safer and easier.
 
 The code primitives here aim to be zero cost abstractions for general concurrency operations in Unreal Engine code bases.
 When something has a runtime cost compared to an alternative it will be noted, but so far these are zero cost!
