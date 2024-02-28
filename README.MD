@@ -5,7 +5,7 @@
 The code primitives here aim to be zero cost abstractions for general concurrency operations in Unreal Engine code bases.
 When something has a runtime cost compared to an alternative it will be noted, but so far these are zero cost!
 
-## Examples:
+## Currently Available primitives:
 ### TReadWriteLock<FYourType>
 ```cpp
 // A wrapper for a default constructed type (e.g., array, map) that ensures
@@ -49,6 +49,8 @@ UE::Concurrent::TReadWriteLock<
 		{
 			const TSubclassOf<AActor>& ActorClass = ActorsEncountered[Index];
 			// Read actor bounds (thread safe and expensive)
+
+			// NB: UE::Actor::GetActorTemplateLocalBounds is not included! 
 			FPaddedBox3f CalculatedBounds = UE::Actor::GetActorTemplateLocalBounds(ActorClass);
 
 			BoundsMap.ReadWriteLocked([&ActorClass, &CalculatedBounds](auto& Map)
@@ -155,7 +157,18 @@ UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGr
 		{
 ```
 
+# Q&A:
+### Why does this project exist?
+> Most of these concurrency primitives were originally purpose built for a early access game called [BadLads](https://badlads.chemicalheads.com/). They proved to be useful so I decided to extract them from the codebase and make them into a code library plugin.
 
+### Where is this project headed?
+> The plan is to keep polishing and adding necessary primitive types, polish includes proper docuemntation.
+
+### What's up with the `Experimental` directory in `Source/Private`?
+> Primitives types that aren't quite game ready but are usable are going to exist inside of that directory.
+
+### What engine version does this support?
+> This has only been tested on the release tag of [Unreal 5.3](https://github.com/EpicGames/UnrealEngine/commit/072300df18a94f18077ca20a14224b5d99fee872). There are currently no plans to provide support for older versions of the engine, but I wouldn't rule it out.
 # Project goals:
 - Add perfect constructor forwarding to TReadWriteLock to allow for non default constructor types. I haven't had the need for this, but it might prove useful. 
 - Ensure copying and moving works on all types. 
