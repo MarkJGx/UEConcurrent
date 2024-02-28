@@ -1,4 +1,4 @@
-// Copyright @MarkJGx 2024 
+// Copyright @MarkJGx 2024
 
 #pragma once
 
@@ -103,8 +103,8 @@ namespace UE
 
 			/**
 			 * @brief Read unsafe can be used when nothing else is being written to this type.
-			 * @tparam FunctionBody 
-			 * @param Function 
+			 * @tparam FunctionBody
+			 * @param Function
 			 */
 			template <typename FunctionBody>
 			inline void ReadUnsafe(FunctionBody&& Function)
@@ -116,8 +116,8 @@ namespace UE
 
 			/**
 			* @brief Read unsafe can be used when nothing else is being written to this type.
-			* @tparam FunctionBody 
-			* @param Function 
+			* @tparam FunctionBody
+			* @param Function
 			*/
 			template <typename FunctionBody>
 			inline void ReadLocked(FunctionBody&& Function)

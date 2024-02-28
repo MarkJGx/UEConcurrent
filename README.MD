@@ -5,7 +5,7 @@
 Examples:
 ### TReadWriteLock<FYourType>
 ```cpp
-// Allows for locked writes and unsafe reads with runtime thread safety assertions.
+// A wrapper for a default constructed type (e.g., array, map) that ensures thread safety through its accessors, allowing for locked writes and unsafe reads with runtime thread safety assertions.
 
 ActorToPrimitiveComponentLayout.ReadWriteLocked(
 [&UniqueEncounteredActors](typename decltype(ActorToPrimitiveComponentLayout)::ElementType& Map)
@@ -66,6 +66,7 @@ UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
 			FProceduralStaticMeshComponentPrimitive PrimitiveKey(MeshComponent);
 
 			// Thread safe add on any container assuming you have space reserved.
+			// Supports move!
 			UE::Concurrent::AddToArrayThreadSafe(PrimitiveKeys, MoveTemp(PrimitiveKey));
 		}
 	});
