@@ -5,7 +5,9 @@
 Examples:
 ### TReadWriteLock<FYourType>
 ```cpp
-// A wrapper for a default constructed type (e.g., array, map) that ensures thread safety through its accessors, allowing for locked writes and unsafe reads with runtime thread safety assertions.
+// A wrapper for a default constructed type (e.g., array, map) that ensures
+// thread safety through its accessors, allowing for locked writes and
+// unsafe reads with runtime thread safety assertions.
 
 ActorToPrimitiveComponentLayout.ReadWriteLocked(
 [&UniqueEncounteredActors](typename decltype(ActorToPrimitiveComponentLayout)::ElementType& Map)
@@ -24,14 +26,16 @@ ActorToPrimitiveComponentLayout.ReadUnsafe(
 	(const auto& Map)
 {
 	// However reading is totally safe! No lock required.
-	// ReadUnsafe will assert if a write is being performed, since ReadUnsafe is completely lockless.
+	// ReadUnsafe will assert if a write is being performed,
+	// since ReadUnsafe is completely lockless.
 	PrimitiveLayouts = Map.Find(SpawnTask.ActorToSpawn);
 });
 ```
 
 ### UE::Concurrent::InlineParallelFor
 ```cpp
-// Allows for quick testing of compiler vectorized non parallel variant through template magic, simply swap to <EParallelForFlags::ForceSingleThread>
+// Allows for quick testing of compiler vectorized
+//  non parallel variant through template magic, simply swap to <EParallelForFlags::ForceSingleThread>
 
 UE::Concurrent::TReadWriteLock<
 	Experimental::TRobinHoodHashMap<TSubclassOf<AActor>, FPaddedBox3f>> BoundsMap;
@@ -55,7 +59,8 @@ UE::Concurrent::TReadWriteLock<
 
 ### UE::Concurrent::AddToArrayThreadSafe 
 ```cpp
-// Allows for a thread safe add on any mutable TArray variant (including custom allocators or non project code arrays) 
+// Allows for a thread safe add on any mutable TArray variant 
+// (including custom allocators or non project owned arrays) 
 PrimitiveKeys.Reserve(Components.Num());
 UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
 	Components,
