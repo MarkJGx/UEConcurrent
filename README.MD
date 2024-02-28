@@ -28,8 +28,8 @@ ActorToPrimitiveComponentLayout.ReadUnsafe(
 	&SpawnTask]
 	(const auto& Map)
 {
-	// However reading is free, assuming nothing else is writing! No lock required.
-	// ReadUnsafe will assert if a write is being performed,
+	// However, reading is free, assuming nothing else is writing! No lock required.
+	// ReadUnsafe will assert if a write is being performed.
 	PrimitiveLayouts = Map.Find(SpawnTask.ActorToSpawn);
 });
 ```
@@ -75,7 +75,7 @@ UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
 		{
 			FProceduralStaticMeshComponentPrimitive PrimitiveKey(MeshComponent);
 
-			// Thread safe add on any container assuming you have space reserved.
+			// Thread-safe add on any container assuming you have space reserved.
 			// Supports move!
 			UE::Concurrent::AddToArrayThreadSafe(PrimitiveKeys, MoveTemp(PrimitiveKey));
 		}
@@ -162,7 +162,7 @@ UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGr
 > Most of these concurrency primitives were originally purpose built for a early access game called [BadLads](https://badlads.chemicalheads.com/). They proved to be useful so I decided to extract them from the codebase and make them into a code library plugin.
 
 ### Where is this project headed?
-> The plan is to keep polishing and adding necessary primitive types, polish includes proper docuemntation.
+> The plan is to keep polishing and adding necessary primitive types, polish includes proper documentation.
 
 ### What's up with the `Experimental` directory in `Source/Private`?
 > Primitives types that aren't quite game ready but are usable are going to exist inside of that directory.
@@ -176,6 +176,6 @@ UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGr
 - Come up with cleaner examples for the README.MD
 - Unit testing
 - Ensure all types work correctly with move operators.
-- Note implementation details and measure cost on target platforms for locking strategies. Consider new Unreal Engine 5 locking primitives instead of FCriticalSection.
+- Note the implementation details and measure the cost on target platforms for locking strategies. Consider new Unreal Engine 5 locking primitives instead of FCriticalSection.
 - Create drop in wrapper for robin hood (round robin) hash maps/set that is API compatible with TSet/TMap. Matching allocator strategy might be tricky. 
 - Measure compile time impact of templates here and make sure it's kept on record. A template permutation could make supported compilers spit out exponentially more code gen and worsen compile times substantially. 
