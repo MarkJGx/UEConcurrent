@@ -2,6 +2,9 @@
 > [!NOTE]
 > A code library that aims to make Unreal concurrency code safer and easier.
 
+The code primitives here aim to be zero cost abstractions for general concurrency operations in Unreal Engine code bases.
+When something has a runtime cost compared to an alternative it will be noted, but so far these are zero cost!
+
 ## Examples:
 ### TReadWriteLock<FYourType>
 ```cpp
@@ -35,7 +38,8 @@ ActorToPrimitiveComponentLayout.ReadUnsafe(
 ### UE::Concurrent::InlineParallelFor
 ```cpp
 // Allows for quick testing of compiler vectorized
-//  non parallel variant through template magic, simply swap to <EParallelForFlags::ForceSingleThread>
+// non parallel variant through template magic, simply swap to <EParallelForFlags::ForceSingleThread>
+// No runtime cost at all.
 
 UE::Concurrent::TReadWriteLock<
 	Experimental::TRobinHoodHashMap<TSubclassOf<AActor>, FPaddedBox3f>> BoundsMap;
