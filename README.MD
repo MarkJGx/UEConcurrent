@@ -157,7 +157,7 @@ UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGr
 ```
 
 
-Project goals:
+# Project goals:
 - Note implementation details and measure cost on target platforms for locking strategies. Consider new Unreal Engine 5 locking primitives instead of FCriticalSection.
 - Create drop in wrapper for robin hood (round robin) hash maps/set that is API compatible with TSet/TMap. Matching allocator strategy might be tricky. 
 - Measure compile time impact of templates here and make sure it's kept on record. A template permutation could make supported compilers spit out exponentially more code gen and worsen compile times substantially. 
