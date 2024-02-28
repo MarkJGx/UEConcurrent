@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.2",
+	"FriendlyName": "UEConcurrent",
+	"Description": "A code library that aims to make Unreal concurrency code safer and easier.",
+	"Category": "Other",
+	"CreatedBy": "@MarkJGx",
+	"CreatedByURL": "markjg.com",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "UEConcurrent",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
