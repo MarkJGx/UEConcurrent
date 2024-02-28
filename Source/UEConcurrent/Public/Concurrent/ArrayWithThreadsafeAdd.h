@@ -69,6 +69,16 @@ namespace UE
 			};
 		}
 
+		/**
+		 * @brief Container must have enough memory reserved before addition.
+		 * @code
+		 * Container.Reserve(EntryAmount);
+		 * @endcode
+		 * @tparam ContainerType
+		 * @tparam ContainerElement
+		 * @param Array
+		 * @param Element
+		 */
 		template <typename ContainerType, typename ContainerElement>
 		void AddToArrayThreadSafe(ContainerType& Array,
 		                          const ContainerElement& Element)
@@ -95,7 +105,10 @@ namespace UE
 		}
 
 		/**
-		 * @brief Container must have enough memory
+		 * @brief Container must have enough memory reserved before addition.
+		 * @code
+		 * Container.Reserve(EntryAmount);
+		 * @endcode
 		 * @tparam ContainerType
 		 * @tparam ContainerElement
 		 * @param Array
