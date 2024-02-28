@@ -82,73 +82,73 @@ UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
 ### Complete snippet of most primitives being used in tandem:
 
 ```cpp
-		using FActorComponentPrimitivesLayout = TArray<FProceduralStaticMeshComponentPrimitive, TInlineAllocator<3>>;
-		UE::Concurrent::TReadWriteLock
-			<Experimental::TRobinHoodHashMap<TSubclassOf<AActor>, FActorComponentPrimitivesLayout>> ActorToPrimitiveComponentLayout;
+using FActorComponentPrimitivesLayout = TArray<FProceduralStaticMeshComponentPrimitive, TInlineAllocator<3>>;
+UE::Concurrent::TReadWriteLock
+	<Experimental::TRobinHoodHashMap<TSubclassOf<AActor>, FActorComponentPrimitivesLayout>> ActorToPrimitiveComponentLayout;
 
-		// Extract primitive 
+// Extract primitive 
+{
+	ActorToPrimitiveComponentLayout.ReadWriteLocked(
+	[&UniqueEncounteredActors](auto& Map)
+	{
+		// Map writing isn't thread safe! So read write locked.
+		Map.Reserve(UniqueEncounteredActors.Num());
+	});
+
+
+	// Iterate through unique actors
+	UE::Concurrent::InlineParallelFor<EParallelForFlags::None>(UniqueEncounteredActors.Num(),
+	 [this, &ActorToPrimitiveComponentLayout, UniqueEncounteredActors](int32 Index)
+	{
+		const TSubclassOf<AActor>& ActorClass = UniqueEncounteredActors[Index];
+		auto Components = UE::Actor::GetClassComponentTemplates<UStaticMeshComponent>(ActorClass);
+
+		if(Components.Num() > 0)
 		{
-			ActorToPrimitiveComponentLayout.ReadWriteLocked(
-			[&UniqueEncounteredActors](auto& Map)
-			{
-				// Map writing isn't thread safe! So read write locked.
-				Map.Reserve(UniqueEncounteredActors.Num());
-			});
-
-
-			// Iterate through unique actors
-			UE::Concurrent::InlineParallelFor<EParallelForFlags::None>(UniqueEncounteredActors.Num(),
-			 [this, &ActorToPrimitiveComponentLayout, UniqueEncounteredActors](int32 Index)
-			{
-				const TSubclassOf<AActor>& ActorClass = UniqueEncounteredActors[Index];
-				auto Components = UE::Actor::GetClassComponentTemplates<UStaticMeshComponent>(ActorClass);
-
-				if(Components.Num() > 0)
-				{
-					FActorComponentPrimitivesLayout PrimitiveKeys;
-					
-					// Reserve space for parallel addition.
-					PrimitiveKeys.Reserve(Components.Num());
-					UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
-						Components,
-						[&PrimitiveKeys, &ActorToPrimitiveComponentLayout, this](UStaticMeshComponent* MeshComponent)
-						{
-							if (MeshComponent->GetStaticMesh())
-							{
-								FProceduralStaticMeshComponentPrimitive PrimitiveKey(MeshComponent);
-
-								// Thread safe add on any container assuming you have space reserved.
-								UE::Concurrent::AddToArrayThreadSafe(PrimitiveKeys, MoveTemp(PrimitiveKey));
-							}
-						});
-
-					ActorToPrimitiveComponentLayout.ReadWriteLocked(
-						[&ActorClass, &PrimitiveKeys](auto& Map)
-						{
-
-							// Map writing isn't thread safe! So read write locked.
-							Map.Update(ActorClass, PrimitiveKeys);
-						});
-				}
-			});
-		}
-		
-		UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGrid.GetData().Num(),
-		 [this, &ActorsGrid, &ActorToPrimitiveComponentLayout](int32 TileIndex)
-		{
-			FBadLadsProceduralGenerationState::FActorGrid::ElementType& SpawnGroup = ActorsGrid.GetData()[TileIndex];
+			FActorComponentPrimitivesLayout PrimitiveKeys;
 			
-			for (const FBadLadsAsyncActorSpawnTask& SpawnTask : SpawnGroup)
-			{
-				const FActorComponentPrimitivesLayout* PrimitiveLayouts;
-
-				ActorToPrimitiveComponentLayout.ReadUnsafe([&ActorToPrimitiveComponentLayout, &PrimitiveLayouts, &SpawnTask](const auto& Map)
+			// Reserve space for parallel addition.
+			PrimitiveKeys.Reserve(Components.Num());
+			UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
+				Components,
+				[&PrimitiveKeys, &ActorToPrimitiveComponentLayout, this](UStaticMeshComponent* MeshComponent)
 				{
-					PrimitiveLayouts = Map.Find(SpawnTask.ActorToSpawn);
+					if (MeshComponent->GetStaticMesh())
+					{
+						FProceduralStaticMeshComponentPrimitive PrimitiveKey(MeshComponent);
+
+						// Thread safe add on any container assuming you have space reserved.
+						UE::Concurrent::AddToArrayThreadSafe(PrimitiveKeys, MoveTemp(PrimitiveKey));
+					}
 				});
 
-
-				if (PrimitiveLayouts)
+			ActorToPrimitiveComponentLayout.ReadWriteLocked(
+				[&ActorClass, &PrimitiveKeys](auto& Map)
 				{
+
+					// Map writing isn't thread safe! So read write locked.
+					Map.Update(ActorClass, PrimitiveKeys);
+				});
+		}
+	});
+}
+
+UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGrid.GetData().Num(),
+ [this, &ActorsGrid, &ActorToPrimitiveComponentLayout](int32 TileIndex)
+{
+	FBadLadsProceduralGenerationState::FActorGrid::ElementType& SpawnGroup = ActorsGrid.GetData()[TileIndex];
+	
+	for (const FBadLadsAsyncActorSpawnTask& SpawnTask : SpawnGroup)
+	{
+		const FActorComponentPrimitivesLayout* PrimitiveLayouts;
+
+		ActorToPrimitiveComponentLayout.ReadUnsafe([&ActorToPrimitiveComponentLayout, &PrimitiveLayouts, &SpawnTask](const auto& Map)
+		{
+			PrimitiveLayouts = Map.Find(SpawnTask.ActorToSpawn);
+		});
+
+
+		if (PrimitiveLayouts)
+		{
 ```
 
