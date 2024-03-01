@@ -12,6 +12,11 @@ When something has a runtime cost compared to an alternative it will be noted, b
 // thread safety through its accessors, allowing for locked writes and
 // unsafe reads with runtime thread safety assertions.
 
+
+using FActorComponentPrimitivesLayout = TArray<FProceduralStaticMeshComponentPrimitive, TInlineAllocator<3>>;
+UE::Concurrent::TReadWriteLock
+	<Experimental::TRobinHoodHashMap<TSubclassOf<AActor>, FActorComponentPrimitivesLayout>> ActorToPrimitiveComponentLayout;
+
 ActorToPrimitiveComponentLayout.ReadWriteLocked(
 [&UniqueEncounteredActors](typename decltype(ActorToPrimitiveComponentLayout)::ElementType& Map)
 {
