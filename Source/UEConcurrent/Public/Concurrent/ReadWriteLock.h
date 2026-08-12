@@ -49,8 +49,10 @@ namespace UE
 
 				UE_NODISCARD_CTOR FScopedConcurrentWriteCheck(const FEnabledConcurrentCheck& State) : State(State)
 				{
+					// A write is exclusive against every other write and against every read.
 					int32 Writers = FPlatformAtomics::InterlockedIncrement(&State.ConcurrentWriters);
 					check(Writers == 1);
+					check(FPlatformAtomics::AtomicRead(&State.ConcurrentReaders) == 0);
 				}
 
 				~FScopedConcurrentWriteCheck()
@@ -66,14 +68,14 @@ namespace UE
 
 				UE_NODISCARD_CTOR FScopedConcurrentReadCheck(const FEnabledConcurrentCheck& State) : State(State)
 				{
-					int32 Readers = FPlatformAtomics::InterlockedIncrement(&State.ConcurrentReaders);
-					check(Readers == 1);
+					// Any number of readers may overlap, so long as nothing is writing.
+					FPlatformAtomics::InterlockedIncrement(&State.ConcurrentReaders);
+					check(FPlatformAtomics::AtomicRead(&State.ConcurrentWriters) == 0);
 				}
 
 				~FScopedConcurrentReadCheck()
 				{
-					int32 Readers = FPlatformAtomics::InterlockedDecrement(&State.ConcurrentReaders);
-					check(Readers == 0);
+					FPlatformAtomics::InterlockedDecrement(&State.ConcurrentReaders);
 				}
 			};
 		};
@@ -110,7 +112,8 @@ namespace UE
 			inline void ReadUnsafe(FunctionBody&& Function)
 			{
 				// We cannot have anything writing to the Type while we are reading.
-				FWriteOnlyScope Scope(ReadWriteState);
+				// Other concurrent readers are fine, which is the entire point of this accessor.
+				FReadOnlyScope Scope(ReadWriteState);
 				Function((const T&)Type);
 			}
 
@@ -124,7 +127,6 @@ namespace UE
 			{
 				// We cannot have anything writing to the Type while we are reading.
 				FScopeLock Lock(&Mutex);
-				FWriteOnlyScope WriteScope(ReadWriteState);
 				FReadOnlyScope ReadScope(ReadWriteState);
 
 				Function((const T&)Type);
@@ -135,7 +137,6 @@ namespace UE
 			{
 				FScopeLock Lock(&Mutex);
 				FWriteOnlyScope WriteScope(ReadWriteState);
-				FReadOnlyScope ReadScope(ReadWriteState);
 
 				Function(Type);
 			}
