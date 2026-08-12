@@ -61,12 +61,50 @@ namespace UE
 					return EmplaceThreadsafe(Item);
 				}
 
-				typename ArrayType::SizeType AddThreadSafe(typename ArrayType::ElementType&& Item)
+				/**
+				 * Adds a new item to the end of the array, using atomics to update the current size of the array.
+				 * Move semantics version.
+				 *
+				 * Caution, the array must have sufficient slack or this will assert/crash. You must presize the array.
+				 *
+				 * @param Item	The item to add
+				 * @return		Index to the new item
+				 */
+				int32 AddThreadsafe(typename ArrayType::ElementType&& Item)
 				{
 					this->CheckAddress(&Item);
 					return EmplaceThreadsafe(MoveTempIfPossible(Item));
 				}
 			};
+
+			/**
+			 * @brief Shared body for both AddToArrayThreadSafe overloads. ContainerElement is deduced
+			 * here rather than in the public overloads, so forwarding is safe: this is a single
+			 * function, not an overload set a forwarding reference could hijack.
+			 */
+			template <typename ContainerType, typename ContainerElement>
+			void AddToArrayThreadSafeImpl(ContainerType& Array, ContainerElement&& Element)
+			{
+				static_assert(TIsContiguousContainer<ContainerType>::Value, "AddToArrayThreadSafe cannot be used on a non Unreal container!");
+				static_assert(std::negation_v<std::is_const<std::remove_reference_t<ContainerType>>>,
+					"AddToArrayThreadSafe has to be used with a non const container reference!");
+
+				using ArrayType = std::remove_cv_t<std::remove_reference_t<decltype(Array)>>;
+				TArrayWithThreadsafeAddHack<ArrayType>* ThreadSafeArray = reinterpret_cast<TArrayWithThreadsafeAddHack<ArrayType>
+					*>(&Array);
+
+#if DO_CHECK
+				auto* DataPreAdd = Array.GetData();
+#endif
+				ThreadSafeArray->AddThreadsafe(Forward<ContainerElement>(Element));
+#if DO_CHECK
+				auto* DataPostAdd = Array.GetData();
+				checkf(DataPreAdd == DataPostAdd,
+				       TEXT(
+					       "Container has been reallocated during thread safe add. Undefined behavior. You must Reserve() container amount pre-addition!"
+				       ));
+#endif
+			}
 		}
 
 		/**
@@ -75,68 +113,30 @@ namespace UE
 		 * Container.Reserve(EntryAmount);
 		 * @endcode
 		 * @tparam ContainerType
-		 * @tparam ContainerElement
 		 * @param Array
 		 * @param Element
 		 */
-		template <typename ContainerType, typename ContainerElement>
+		template <typename ContainerType>
 		void AddToArrayThreadSafe(ContainerType& Array,
-		                          const ContainerElement& Element)
+		                          const typename ContainerType::ElementType& Element)
 		{
-			static_assert(TIsContiguousContainer<ContainerType>::Value, "AddToArrayThreadSafe cannot be used on a non Unreal container!");
-			static_assert(std::negation_v<std::is_const<std::remove_reference_t<ContainerType>>>,
-				"AddToArrayThreadSafe has to be used with a non const container reference!");
-
-			using ArrayType = std::remove_cv_t<std::remove_reference_t<decltype(Array)>>;
-			Private::TArrayWithThreadsafeAddHack<ArrayType>* ThreadSafeArray = reinterpret_cast<Private::TArrayWithThreadsafeAddHack<ArrayType>
-				*>(&Array);
-
-#if DO_CHECK
-			auto* DataPreAdd = Array.GetData();
-#endif
-			ThreadSafeArray->AddThreadsafe(Forward<ContainerElement>(Element));
-#if DO_CHECK
-			auto* DataBeforeAdd = Array.GetData();
-			checkf(DataPreAdd == DataBeforeAdd,
-			       TEXT(
-				       "Container has been realoocated during thread safe add. Undefined behavior. You must Reserve container amount pre-addition!"
-			       ));
-#endif
+			Private::AddToArrayThreadSafeImpl(Array, Element);
 		}
 
 		/**
-		 * @brief Container must have enough memory reserved before addition.
+		 * @brief Container must have enough memory reserved before addition. Move semantics version.
 		 * @code
 		 * Container.Reserve(EntryAmount);
 		 * @endcode
 		 * @tparam ContainerType
-		 * @tparam ContainerElement
 		 * @param Array
 		 * @param Element
 		 */
-		template <typename ContainerType, typename ContainerElement>
+		template <typename ContainerType>
 		void AddToArrayThreadSafe(ContainerType& Array,
-		                          ContainerElement&& Element)
+		                          typename ContainerType::ElementType&& Element)
 		{
-			static_assert(TIsContiguousContainer<ContainerType>::Value, "AddToArrayThreadSafe cannot be used on a non Unreal container!");
-			static_assert(std::negation_v<std::is_const<std::remove_reference_t<ContainerType>>>,
-				"AddToArrayThreadSafe has to be used with a non const container reference!");
-
-			using ArrayType = std::remove_cv_t<std::remove_reference_t<decltype(Array)>>;
-			Private::TArrayWithThreadsafeAddHack<ArrayType>* ThreadSafeArray = reinterpret_cast<Private::TArrayWithThreadsafeAddHack<ArrayType>
-				*>(&Array);
-
-#if DO_CHECK
-			auto* DataPreAdd = Array.GetData();
-#endif
-			ThreadSafeArray->AddThreadsafe(Forward<ContainerElement>(Element));
-#if DO_CHECK
-			auto* DataBeforeAdd = Array.GetData();
-			checkf(DataPreAdd == DataBeforeAdd,
-			       TEXT(
-				       "Container has been realoocated during thread safe add. Undefined behavior. You must Reserve() container amount pre-addition!"
-			       ));
-#endif
+			Private::AddToArrayThreadSafeImpl(Array, MoveTempIfPossible(Element));
 		}
 	}
 }
