@@ -121,13 +121,13 @@ namespace UE
 		template <typename OkResult>
 		TResult<OkResult> AsError(const FString& Message)
 		{
-			return TResult<OkResult>(Message);
+			return TResult<OkResult>(FResultError(Message));
 		}
 
 		template <typename OkResult>
 		TResult<OkResult> AsError(FString&& Message)
 		{
-			return TResult<OkResult>(MoveTemp(Message));
+			return TResult<OkResult>(FResultError(MoveTemp(Message)));
 		}
 
 		template <typename OkResult>
