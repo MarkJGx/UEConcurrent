@@ -45,7 +45,7 @@ namespace UE
 			{
 			};
 
-			explicit TResult(FResultError&& Error) : Error(Error)
+			explicit TResult(FResultError&& Error) : Error(MoveTemp(Error))
 			{
 			};
 
