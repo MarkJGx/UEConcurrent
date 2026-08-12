@@ -57,13 +57,13 @@ namespace UE
 				 */
 				int32 AddThreadsafe(const typename ArrayType::ElementType& Item)
 				{
-					CheckAddress(&Item);
+					this->CheckAddress(&Item);
 					return EmplaceThreadsafe(Item);
 				}
 
 				typename ArrayType::SizeType AddThreadSafe(typename ArrayType::ElementType&& Item)
 				{
-					CheckAddress(&Item);
+					this->CheckAddress(&Item);
 					return EmplaceThreadsafe(MoveTempIfPossible(Item));
 				}
 			};
