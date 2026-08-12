@@ -5,6 +5,12 @@
 
 #include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "HAL/PlatformAtomics.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
+#include "Traits/IsContiguousContainer.h"
+
+#include <type_traits>
 
 namespace UE
 {

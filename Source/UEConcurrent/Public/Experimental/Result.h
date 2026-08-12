@@ -2,7 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Containers/UnrealString.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "Templates/UnrealTemplate.h"
 
 class FResultError
 {

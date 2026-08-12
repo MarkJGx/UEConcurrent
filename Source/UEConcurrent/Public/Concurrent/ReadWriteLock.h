@@ -4,6 +4,12 @@
 
 #include "CoreTypes.h"
 #include "UEConcurrentDefines.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformAtomics.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ScopeLock.h"
+
+#include <type_traits>
 
 namespace UE
 {
