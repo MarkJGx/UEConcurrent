@@ -75,13 +75,13 @@ namespace UE
 			OkResult& Unwrap()
 			{
 				checkf(Result.IsSet(), TEXT("Unwrapping an invalid result!"));
-				return Result.Get();
+				return Result.GetValue();
 			}
 
 			const OkResult& Unwrap() const
 			{
 				checkf(Result.IsSet(), TEXT("Unwrapping an invalid result!"));
-				return Result.Get();
+				return Result.GetValue();
 			}
 
 			template <typename CallableType>
