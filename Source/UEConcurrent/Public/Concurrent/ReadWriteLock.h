@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "UEConcurrentDefines.h"
 
 namespace UE
 {
@@ -12,7 +13,7 @@ namespace UE
 		{
 			struct FScopedConcurrentWriteCheck
 			{
-				UE_NODISCARD_CTOR FScopedConcurrentWriteCheck(const FDisabledConcurrentCheck&)
+				UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentWriteCheck(const FDisabledConcurrentCheck&)
 				{
 				}
 
@@ -23,7 +24,7 @@ namespace UE
 
 			struct FScopedConcurrentReadCheck
 			{
-				UE_NODISCARD_CTOR FScopedConcurrentReadCheck(const FDisabledConcurrentCheck&)
+				UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentReadCheck(const FDisabledConcurrentCheck&)
 				{
 				}
 
@@ -47,7 +48,7 @@ namespace UE
 			{
 				const FEnabledConcurrentCheck& State;
 
-				UE_NODISCARD_CTOR FScopedConcurrentWriteCheck(const FEnabledConcurrentCheck& State) : State(State)
+				UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentWriteCheck(const FEnabledConcurrentCheck& State) : State(State)
 				{
 					// A write is exclusive against every other write and against every read.
 					int32 Writers = FPlatformAtomics::InterlockedIncrement(&State.ConcurrentWriters);
@@ -66,7 +67,7 @@ namespace UE
 			{
 				const FEnabledConcurrentCheck& State;
 
-				UE_NODISCARD_CTOR FScopedConcurrentReadCheck(const FEnabledConcurrentCheck& State) : State(State)
+				UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentReadCheck(const FEnabledConcurrentCheck& State) : State(State)
 				{
 					// Any number of readers may overlap, so long as nothing is writing.
 					FPlatformAtomics::InterlockedIncrement(&State.ConcurrentReaders);
