@@ -1,3 +1,5 @@
+// Copyright @MarkJGx 2024
+
 #include "UEConcurrentModule.h"
 #include "Modules/ModuleManager.h"
 

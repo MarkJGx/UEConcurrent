@@ -16,12 +16,5 @@ public class UEConcurrent : ModuleRules
 				"Core",
 			}
 		);
-
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"CoreUObject",
-			}
-		);
 	}
 }
