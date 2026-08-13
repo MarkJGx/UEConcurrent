@@ -93,8 +93,9 @@ namespace UE
 {
 	namespace Concurrent
 	{
-		// Enable concurrency read/write checks in development builds.
-		template <typename T, bool bConcurrencyCheckEnabled = UE_BUILD_DEVELOPMENT>
+		// Enable concurrency read/write checks wherever check() itself is enabled, which covers
+		// Debug, DebugGame and Development. UE_BUILD_DEVELOPMENT would have excluded Debug.
+		template <typename T, bool bConcurrencyCheckEnabled = DO_CHECK>
 		class TReadWriteLock
 		{
 			using FConcurrent = std::conditional_t<bConcurrencyCheckEnabled, UE::Private::FEnabledConcurrentCheck,
