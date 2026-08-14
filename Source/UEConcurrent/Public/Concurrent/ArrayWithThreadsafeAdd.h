@@ -29,10 +29,12 @@ namespace UE
 			template <typename ArrayType>
 			class TArrayWithThreadSafeAddHack : public ArrayType
 			{
+				using FSizeType = typename ArrayType::SizeType;
+
 				template <typename... ArgsType>
-				int32 EmplaceThreadSafe(ArgsType&&... Args)
+				FSizeType EmplaceThreadSafe(ArgsType&&... Args)
 				{
-					const int32 Index = AddUninitializedThreadSafe(1);
+					const FSizeType Index = AddUninitializedThreadSafe(1);
 					if (Index == INDEX_NONE)
 					{
 						return INDEX_NONE;
@@ -59,12 +61,12 @@ namespace UE
 				 * @return Number of elements in array before addition, or INDEX_NONE when the
 				 *         reservation failed.
 				 */
-				int32 AddUninitializedThreadSafe(int32 Count = 1)
+				FSizeType AddUninitializedThreadSafe(FSizeType Count = 1)
 				{
 					check(Count >= 0);
 					while (true)
 					{
-						const int32 OldNum = FPlatformAtomics::AtomicRead(&this->ArrayNum);
+						const FSizeType OldNum = FPlatformAtomics::AtomicRead(&this->ArrayNum);
 						if (OldNum > this->ArrayMax - Count)
 						{
 							return INDEX_NONE;
@@ -87,7 +89,7 @@ namespace UE
 				 * @param Item	The item to add
 				 * @return		Index to the new item, or INDEX_NONE when the reservation failed
 				 */
-				int32 AddThreadSafe(const typename ArrayType::ElementType& Item)
+				FSizeType AddThreadSafe(const typename ArrayType::ElementType& Item)
 				{
 					this->CheckAddress(&Item);
 					return EmplaceThreadSafe(Item);
@@ -103,7 +105,7 @@ namespace UE
 				 * @param Item	The item to add
 				 * @return		Index to the new item, or INDEX_NONE when the reservation failed
 				 */
-				int32 AddThreadSafe(typename ArrayType::ElementType&& Item)
+				FSizeType AddThreadSafe(typename ArrayType::ElementType&& Item)
 				{
 					this->CheckAddress(&Item);
 					return EmplaceThreadSafe(MoveTempIfPossible(Item));
@@ -145,7 +147,7 @@ namespace UE
 			 * function, not an overload set a forwarding reference could hijack.
 			 */
 			template <typename ContainerType, typename ContainerElement>
-			int32 AddToArrayThreadSafeImpl(ContainerType& Array, ContainerElement&& Element)
+			typename ContainerType::SizeType AddToArrayThreadSafeImpl(ContainerType& Array, ContainerElement&& Element)
 			{
 				static_assert(TIsThreadSafeAddableArray<ContainerType>::Value,
 					"AddToArrayThreadSafe requires a non-const, standard-layout TArray with non-const elements!");
@@ -186,8 +188,8 @@ namespace UE
 		 * @return Index of the added element, or INDEX_NONE when the reservation failed
 		 */
 		template <typename ContainerType>
-		int32 AddToArrayThreadSafe(ContainerType& Array,
-		                           const typename ContainerType::ElementType& Element)
+		typename ContainerType::SizeType AddToArrayThreadSafe(ContainerType& Array,
+		                                                      const typename ContainerType::ElementType& Element)
 		{
 			return Private::AddToArrayThreadSafeImpl(Array, Element);
 		}
@@ -209,8 +211,8 @@ namespace UE
 		 * @return Index of the added element, or INDEX_NONE when the reservation failed
 		 */
 		template <typename ContainerType>
-		int32 AddToArrayThreadSafe(ContainerType& Array,
-		                           typename ContainerType::ElementType&& Element)
+		typename ContainerType::SizeType AddToArrayThreadSafe(ContainerType& Array,
+		                                                      typename ContainerType::ElementType&& Element)
 		{
 			return Private::AddToArrayThreadSafeImpl(Array, MoveTempIfPossible(Element));
 		}
