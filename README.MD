@@ -231,11 +231,6 @@ UE4Editor <PathToProject>/<ProjectName>.uproject -unattended -nullrhi -ExecCmds=
 UE4Editor <PathToProject>/<ProjectName>.uproject -unattended -nullrhi -onethread -ExecCmds="Automation RunTests Now UEConcurrent" -TestExit="Automation Test Queue Empty"
 ```
 # Project goals:
-- Add perfect constructor forwarding to TReadWriteLock to allow for non default constructor types. I haven't had the need for this, but it might prove useful. 
-- TReadWriteLock is explicitly non-copyable and non-movable (matching FCriticalSection and std::mutex); the guarded T works correctly with move operators inside the accessors. 
-- Add TReadWriteLockView, primarily for concurrent operations on engine owned fields.
-- Come up with cleaner examples for the README.MD
-- Unit testing
 - Note the implementation details and measure the cost on target platforms for locking strategies.
 - Create drop in wrapper for robin hood (round robin) hash maps/set that is API compatible with TSet/TMap. Matching allocator strategy might be tricky. 
 - Measure compile time impact of templates here and make sure it's kept on record. A template permutation could make supported compilers spit out exponentially more code gen and worsen compile times substantially. 
