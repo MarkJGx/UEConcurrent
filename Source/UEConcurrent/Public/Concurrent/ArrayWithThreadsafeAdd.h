@@ -23,14 +23,16 @@ namespace UE
 	{
 		namespace Private
 		{
-			// Ripped from TickTaskManager with slight modifications
+			/**
+			 * @note Ripped from TickTaskManager with slight modifications.
+			 */
 			template <typename ArrayType>
-			class TArrayWithThreadsafeAddHack : public ArrayType
+			class TArrayWithThreadSafeAddHack : public ArrayType
 			{
 				template <typename... ArgsType>
-				int32 EmplaceThreadsafe(ArgsType&&... Args)
+				int32 EmplaceThreadSafe(ArgsType&&... Args)
 				{
-					const int32 Index = AddUninitializedThreadsafe(1);
+					const int32 Index = AddUninitializedThreadSafe(1);
 					if (Index == INDEX_NONE)
 					{
 						return INDEX_NONE;
@@ -57,7 +59,7 @@ namespace UE
 				 * @return Number of elements in array before addition, or INDEX_NONE when the
 				 *         reservation failed.
 				 */
-				int32 AddUninitializedThreadsafe(int32 Count = 1)
+				int32 AddUninitializedThreadSafe(int32 Count = 1)
 				{
 					check(Count >= 0);
 					while (true)
@@ -85,10 +87,10 @@ namespace UE
 				 * @param Item	The item to add
 				 * @return		Index to the new item, or INDEX_NONE when the reservation failed
 				 */
-				int32 AddThreadsafe(const typename ArrayType::ElementType& Item)
+				int32 AddThreadSafe(const typename ArrayType::ElementType& Item)
 				{
 					this->CheckAddress(&Item);
-					return EmplaceThreadsafe(Item);
+					return EmplaceThreadSafe(Item);
 				}
 
 				/**
@@ -101,10 +103,10 @@ namespace UE
 				 * @param Item	The item to add
 				 * @return		Index to the new item, or INDEX_NONE when the reservation failed
 				 */
-				int32 AddThreadsafe(typename ArrayType::ElementType&& Item)
+				int32 AddThreadSafe(typename ArrayType::ElementType&& Item)
 				{
 					this->CheckAddress(&Item);
-					return EmplaceThreadsafe(MoveTempIfPossible(Item));
+					return EmplaceThreadSafe(MoveTempIfPossible(Item));
 				}
 			};
 
@@ -115,7 +117,7 @@ namespace UE
 			 * elements.
 			 */
 			template <typename ContainerType>
-			struct TIsThreadsafeAddableArray
+			struct TIsThreadSafeAddableArray
 			{
 				using FArrayType = typename TRemoveCV<typename TRemoveReference<ContainerType>::Type>::Type;
 				using FArrayBase = TArray<typename FArrayType::ElementType, typename FArrayType::Allocator>;
@@ -145,17 +147,17 @@ namespace UE
 			template <typename ContainerType, typename ContainerElement>
 			int32 AddToArrayThreadSafeImpl(ContainerType& Array, ContainerElement&& Element)
 			{
-				static_assert(TIsThreadsafeAddableArray<ContainerType>::Value,
+				static_assert(TIsThreadSafeAddableArray<ContainerType>::Value,
 					"AddToArrayThreadSafe requires a non-const, standard-layout TArray with non-const elements!");
 
 				using ArrayType = typename TRemoveCV<typename TRemoveReference<decltype(Array)>::Type>::Type;
-				TArrayWithThreadsafeAddHack<ArrayType>* ThreadSafeArray = reinterpret_cast<TArrayWithThreadsafeAddHack<ArrayType>
+				TArrayWithThreadSafeAddHack<ArrayType>* ThreadSafeArray = reinterpret_cast<TArrayWithThreadSafeAddHack<ArrayType>
 					*>(&Array);
 
 #if DO_CHECK
 				auto* DataPreAdd = Array.GetData();
 #endif
-				const int32 Index = ThreadSafeArray->AddThreadsafe(Forward<ContainerElement>(Element));
+				const int32 Index = ThreadSafeArray->AddThreadSafe(Forward<ContainerElement>(Element));
 #if DO_CHECK
 				auto* DataPostAdd = Array.GetData();
 				checkf(DataPreAdd == DataPostAdd,
