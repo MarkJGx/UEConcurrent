@@ -56,6 +56,21 @@ ActorToPrimitiveComponentLayout.ReadWriteLocked(
 });
 ```
 
+```cpp
+// TReadWriteLockView locks a field you don't own, like an engine-owned global.
+// Use one view per field, shared by reference: separate views of the same field
+// do not coordinate with each other.
+TArray<FProceduralStaticMeshComponentPrimitive>& GlobalPrimitiveLayout = ...;
+
+UE::Concurrent::TReadWriteLockView<TArray<FProceduralStaticMeshComponentPrimitive>> PrimitiveLayoutView(GlobalPrimitiveLayout);
+
+PrimitiveLayoutView.ReadWriteLocked(
+	[&SpawnTask](auto& PrimitiveLayout)
+{
+	PrimitiveLayout.Add(PrimitiveKey);
+});
+```
+
 ### UE::Concurrent::InlineParallelFor
 ```cpp
 // Allows for quick testing of compiler vectorized
