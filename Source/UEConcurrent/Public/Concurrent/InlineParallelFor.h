@@ -77,7 +77,7 @@ namespace UE
 		template <EParallelForFlags ParallelMode, typename ContainerType, typename FunctionBody>
 		void InlineParallelForEach(ContainerType& Container, const FunctionBody& Function)
 		{
-			InlineParallelFor<ParallelMode>(Container.Num(), [&](int32 Index)
+			InlineParallelFor<ParallelMode>(Container.Num(), [&Container, &Function](int32 Index)
 			{
 				Function(Container[Index]);
 			});
@@ -87,7 +87,7 @@ namespace UE
 		void InlineParallelForEach(ContainerType& Container, const FunctionBody& Function,
 		                           EParallelForFlags ParallelMode = EParallelForFlags::None)
 		{
-			InlineParallelFor(Container.Num(), [&](int32 Index)
+			InlineParallelFor(Container.Num(), [&Container, &Function](int32 Index)
 			{
 				Function(Container[Index]);
 			}, ParallelMode);
