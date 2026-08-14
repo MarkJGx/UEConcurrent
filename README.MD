@@ -215,6 +215,21 @@ UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGr
 
 ### What engine version does this support?
 > This has been tested on [Unreal 4.27](https://github.com/EpicGames/UnrealEngine/tree/4.27) and the release tag of [Unreal 5.3](https://github.com/EpicGames/UnrealEngine/tree/5.3.2-release).
+
+### How do I run the tests?
+> The plugin ships an Automation test suite (`UEConcurrentTestSuite`). Run it headless with your engine's
+> editor executable (`UE4Editor` on 4.x, `UnrealEditor` on 5.x), pointing at a project with the plugin enabled:
+
+```
+UE4Editor <PathToProject>/<ProjectName>.uproject -unattended -nullrhi -ExecCmds="Automation RunTests Now UEConcurrent" -TestExit="Automation Test Queue Empty"
+```
+
+> Run it again with `-onethread` to cover the threading-disabled path (the same path single-core machines,
+> `-noperfthreads` and dedicated servers take):
+
+```
+UE4Editor <PathToProject>/<ProjectName>.uproject -unattended -nullrhi -onethread -ExecCmds="Automation RunTests Now UEConcurrent" -TestExit="Automation Test Queue Empty"
+```
 # Project goals:
 - Add perfect constructor forwarding to TReadWriteLock to allow for non default constructor types. I haven't had the need for this, but it might prove useful. 
 - TReadWriteLock is explicitly non-copyable and non-movable (matching FCriticalSection and std::mutex); the guarded T works correctly with move operators inside the accessors. 
