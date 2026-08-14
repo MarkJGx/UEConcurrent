@@ -217,11 +217,10 @@ UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGr
 > This has only been tested on the release tag of [Unreal 5.3](https://github.com/EpicGames/UnrealEngine/commit/072300df18a94f18077ca20a14224b5d99fee872). There are currently no plans to provide support for older versions of the engine, but I wouldn't rule it out.
 # Project goals:
 - Add perfect constructor forwarding to TReadWriteLock to allow for non default constructor types. I haven't had the need for this, but it might prove useful. 
-- Ensure copying and moving works on all types. 
+- TReadWriteLock is explicitly non-copyable and non-movable (matching FCriticalSection and std::mutex); the guarded T works correctly with move operators inside the accessors. 
 - Add TReadWriteLockView, primarily for concurrent operations on engine owned fields.
 - Come up with cleaner examples for the README.MD
 - Unit testing
-- Ensure all types work correctly with move operators.
 - Note the implementation details and measure the cost on target platforms for locking strategies.
 - Create drop in wrapper for robin hood (round robin) hash maps/set that is API compatible with TSet/TMap. Matching allocator strategy might be tricky. 
 - Measure compile time impact of templates here and make sure it's kept on record. A template permutation could make supported compilers spit out exponentially more code gen and worsen compile times substantially. 
