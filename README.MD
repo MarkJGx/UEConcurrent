@@ -100,12 +100,21 @@ UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
 		{
 			FProceduralStaticMeshComponentPrimitive PrimitiveKey(MeshComponent);
 
-			// Thread-safe add on any container assuming you have space reserved.
+			// Thread-safe add on any TArray variant assuming you have space reserved.
 			// Supports move!
 			UE::Concurrent::AddToArrayThreadSafe(PrimitiveKeys, MoveTemp(PrimitiveKey));
 		}
 	});
 
+```
+
+```cpp
+// TArray64 is supported: the returned index uses the array's 64-bit SizeType.
+TArray64<FProceduralStaticMeshComponentPrimitive> PrimitiveKeys64;
+PrimitiveKeys64.Reserve(Components.Num());
+
+const int64 Index = UE::Concurrent::AddToArrayThreadSafe(PrimitiveKeys64, MoveTemp(PrimitiveKey));
+check(Index != INDEX_NONE);
 ```
 
 
