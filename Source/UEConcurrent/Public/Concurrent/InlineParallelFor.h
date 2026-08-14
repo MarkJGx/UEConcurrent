@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Async/ParallelFor.h"
 #include "Misc/EnumClassFlags.h"
+#include "UEConcurrentDefines.h"
 
 namespace UE
 {
