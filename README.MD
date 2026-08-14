@@ -214,7 +214,7 @@ UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGr
 > Primitives types that aren't quite game ready but are usable are going to exist inside of that directory.
 
 ### What engine version does this support?
-> This has only been tested on the release tag of [Unreal 5.3](https://github.com/EpicGames/UnrealEngine/commit/072300df18a94f18077ca20a14224b5d99fee872). There are currently no plans to provide support for older versions of the engine, but I wouldn't rule it out.
+> This has been tested on [Unreal 4.27](https://github.com/EpicGames/UnrealEngine/tree/4.27) and the release tag of [Unreal 5.3](https://github.com/EpicGames/UnrealEngine/commit/072300df18a94f18077ca20a14224b5d99fee872).
 # Project goals:
 - Add perfect constructor forwarding to TReadWriteLock to allow for non default constructor types. I haven't had the need for this, but it might prove useful. 
 - TReadWriteLock is explicitly non-copyable and non-movable (matching FCriticalSection and std::mutex); the guarded T works correctly with move operators inside the accessors. 
