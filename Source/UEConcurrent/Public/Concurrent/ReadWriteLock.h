@@ -171,9 +171,9 @@ namespace UE
 				}
 
 #if !UE_CONCURRENT_HAS_IF_CONSTEXPR
-				// Fallback for compilers without if constexpr: plain if compiles both branches,
-				// so the state-dependent checks must be well-formed for the disabled state too.
-				// Only the matching overload is ever instantiated.
+				// Only for compilers without if constexpr: plain if compiles both branches,
+				// and the disabled state has no counters to check inline. Prefer the inline
+				// checks; this path exists only where if constexpr is unavailable.
 				void CheckReadSafety(const FEnabledConcurrentCheck& State)
 				{
 					check(FPlatformAtomics::AtomicRead(&State.ConcurrentWriters) == 0);
