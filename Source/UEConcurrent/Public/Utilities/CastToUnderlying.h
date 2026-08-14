@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Templates/IsEnum.h"
 
 template <class EnumType>
