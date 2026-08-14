@@ -619,6 +619,11 @@ namespace UE
 			{
 			}
 
+			TReadWriteLock(const TReadWriteLock&) = delete;
+			TReadWriteLock& operator=(const TReadWriteLock&) = delete;
+			TReadWriteLock(TReadWriteLock&&) = delete;
+			TReadWriteLock& operator=(TReadWriteLock&&) = delete;
+
 			template <typename FunctionBody>
 			inline void ReadUnsafe(FunctionBody&& Function)
 			{
@@ -679,6 +684,11 @@ namespace UE
 			explicit TReadWriteLockView(T& InType) : Type(InType)
 			{
 			}
+
+			TReadWriteLockView(const TReadWriteLockView&) = delete;
+			TReadWriteLockView& operator=(const TReadWriteLockView&) = delete;
+			TReadWriteLockView(TReadWriteLockView&&) = delete;
+			TReadWriteLockView& operator=(TReadWriteLockView&&) = delete;
 
 			template <typename FunctionBody>
 			inline void ReadUnsafe(FunctionBody&& Function)
