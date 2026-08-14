@@ -39,6 +39,26 @@ ActorToPrimitiveComponentLayout.ReadUnsafe(
 });
 ```
 
+```cpp
+// TReadWriteLock supports recursion.
+void AnothaFunction()
+{
+	ActorToPrimitiveComponentLayout.ReadLocked(
+		[&PrimitiveLayouts, &SpawnTask](const auto& ReadOnlyMap)
+	{
+		PrimitiveLayouts = ReadOnlyMap.Find(SpawnTask.ActorToSpawn);
+	});
+}
+
+ActorToPrimitiveComponentLayout.ReadWriteLocked(
+	[&ActorToPrimitiveComponentLayout](auto& Map)
+{
+	Map.Reserve(UniqueEncounteredActors.Num());
+
+	AnothaFunction();
+});
+```
+
 ### UE::Concurrent::InlineParallelFor
 ```cpp
 // Allows for quick testing of compiler vectorized
@@ -181,6 +201,6 @@ UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGr
 - Come up with cleaner examples for the README.MD
 - Unit testing
 - Ensure all types work correctly with move operators.
-- Note the implementation details and measure the cost on target platforms for locking strategies. Consider new Unreal Engine 5 locking primitives instead of FCriticalSection.
+- Note the implementation details and measure the cost on target platforms for locking strategies.
 - Create drop in wrapper for robin hood (round robin) hash maps/set that is API compatible with TSet/TMap. Matching allocator strategy might be tricky. 
 - Measure compile time impact of templates here and make sure it's kept on record. A template permutation could make supported compilers spit out exponentially more code gen and worsen compile times substantially. 
