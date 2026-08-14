@@ -1,4 +1,4 @@
-# Unreal Concurrent
+# UEConcurrent
 
 UEConcurrent is a header-only library of concurrency primitives for Unreal Engine, created for ease of use and development runtime safety.
 
