@@ -18,74 +18,77 @@
 
 namespace UE
 {
-	namespace Private
+	namespace Concurrent
 	{
-		struct FDisabledConcurrentCheck
+		namespace Private
 		{
-			struct FScopedConcurrentWriteCheck
+			struct FDisabledConcurrentCheck
 			{
-				UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentWriteCheck(const FDisabledConcurrentCheck&)
+				struct FScopedConcurrentWriteCheck
 				{
-				}
-
-				~FScopedConcurrentWriteCheck()
+					UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentWriteCheck(const FDisabledConcurrentCheck&)
+					{
+					}
+	
+					~FScopedConcurrentWriteCheck()
+					{
+					}
+				};
+	
+				struct FScopedConcurrentReadCheck
 				{
-				}
+					UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentReadCheck(const FDisabledConcurrentCheck&)
+					{
+					}
+	
+					~FScopedConcurrentReadCheck()
+					{
+					}
+				};
 			};
-
-			struct FScopedConcurrentReadCheck
+	
+			struct FEnabledConcurrentCheck
 			{
-				UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentReadCheck(const FDisabledConcurrentCheck&)
+				mutable int32 ConcurrentReaders;
+				mutable int32 ConcurrentWriters;
+	
+				FEnabledConcurrentCheck() : ConcurrentReaders(0), ConcurrentWriters(0)
 				{
 				}
-
-				~FScopedConcurrentReadCheck()
+	
+				struct FScopedConcurrentWriteCheck
 				{
-				}
+					const FEnabledConcurrentCheck& State;
+	
+					UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentWriteCheck(const FEnabledConcurrentCheck& State) : State(State)
+					{
+						// Counter only; the exclusivity checks run in the accessor after this increment.
+						FPlatformAtomics::InterlockedIncrement(&State.ConcurrentWriters);
+					}
+	
+					~FScopedConcurrentWriteCheck()
+					{
+						FPlatformAtomics::InterlockedDecrement(&State.ConcurrentWriters);
+					}
+				};
+	
+				struct FScopedConcurrentReadCheck
+				{
+					const FEnabledConcurrentCheck& State;
+	
+					UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentReadCheck(const FEnabledConcurrentCheck& State) : State(State)
+					{
+						// Counter only; the exclusivity checks run in the accessor after this increment.
+						FPlatformAtomics::InterlockedIncrement(&State.ConcurrentReaders);
+					}
+	
+					~FScopedConcurrentReadCheck()
+					{
+						FPlatformAtomics::InterlockedDecrement(&State.ConcurrentReaders);
+					}
+				};
 			};
-		};
-
-		struct FEnabledConcurrentCheck
-		{
-			mutable int32 ConcurrentReaders;
-			mutable int32 ConcurrentWriters;
-
-			FEnabledConcurrentCheck() : ConcurrentReaders(0), ConcurrentWriters(0)
-			{
-			}
-
-			struct FScopedConcurrentWriteCheck
-			{
-				const FEnabledConcurrentCheck& State;
-
-				UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentWriteCheck(const FEnabledConcurrentCheck& State) : State(State)
-				{
-					// Counter only; the exclusivity checks run in the accessor after this increment.
-					FPlatformAtomics::InterlockedIncrement(&State.ConcurrentWriters);
-				}
-
-				~FScopedConcurrentWriteCheck()
-				{
-					FPlatformAtomics::InterlockedDecrement(&State.ConcurrentWriters);
-				}
-			};
-
-			struct FScopedConcurrentReadCheck
-			{
-				const FEnabledConcurrentCheck& State;
-
-				UE_CONCURRENT_NODISCARD_CTOR FScopedConcurrentReadCheck(const FEnabledConcurrentCheck& State) : State(State)
-				{
-					// Counter only; the exclusivity checks run in the accessor after this increment.
-					FPlatformAtomics::InterlockedIncrement(&State.ConcurrentReaders);
-				}
-
-				~FScopedConcurrentReadCheck()
-				{
-					FPlatformAtomics::InterlockedDecrement(&State.ConcurrentReaders);
-				}
-			};
-		};
+		}
 	}
 
 	namespace Concurrent
@@ -103,8 +106,8 @@ namespace UE
 			template <bool bConcurrencyCheckEnabled>
 			class TReadWriteLockBase
 			{
-				using FConcurrent = std::conditional_t<bConcurrencyCheckEnabled, UE::Private::FEnabledConcurrentCheck,
-				                                       UE::Private::FDisabledConcurrentCheck>;
+				using FConcurrent = std::conditional_t<bConcurrencyCheckEnabled, FEnabledConcurrentCheck,
+				                                       FDisabledConcurrentCheck>;
 
 				using FReadOnlyScope = typename FConcurrent::FScopedConcurrentReadCheck;
 				using FWriteOnlyScope = typename FConcurrent::FScopedConcurrentWriteCheck;
@@ -171,22 +174,22 @@ namespace UE
 				// Fallback for compilers without if constexpr: plain if compiles both branches,
 				// so the state-dependent checks must be well-formed for the disabled state too.
 				// Only the matching overload is ever instantiated.
-				void CheckReadSafety(const UE::Private::FEnabledConcurrentCheck& State)
+				void CheckReadSafety(const FEnabledConcurrentCheck& State)
 				{
 					check(FPlatformAtomics::AtomicRead(&State.ConcurrentWriters) == 0);
 				}
 
-				void CheckReadSafety(const UE::Private::FDisabledConcurrentCheck&)
+				void CheckReadSafety(const FDisabledConcurrentCheck&)
 				{
 				}
 
-				void CheckWriteExclusivity(const UE::Private::FEnabledConcurrentCheck& State)
+				void CheckWriteExclusivity(const FEnabledConcurrentCheck& State)
 				{
 					check(FPlatformAtomics::AtomicRead(&State.ConcurrentWriters) == 1);
 					check(FPlatformAtomics::AtomicRead(&State.ConcurrentReaders) == 0);
 				}
 
-				void CheckWriteExclusivity(const UE::Private::FDisabledConcurrentCheck&)
+				void CheckWriteExclusivity(const FDisabledConcurrentCheck&)
 				{
 				}
 #endif
