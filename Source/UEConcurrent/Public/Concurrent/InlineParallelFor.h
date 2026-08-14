@@ -25,7 +25,11 @@ namespace UE
 			// Unbalanced, PumpRenderingThread or BackgroundPriority. An equality test would miss those
 			// and fall through to ParallelForTemplate, which still runs serially but costs us the
 			// inline loop this whole function exists to provide.
+#if UE_CONCURRENT_HAS_IF_CONSTEXPR
 			if constexpr (EnumHasAnyFlags(ParallelMode, EParallelForFlags::ForceSingleThread))
+#else
+			if (EnumHasAnyFlags(ParallelMode, EParallelForFlags::ForceSingleThread))
+#endif
 			{
 				// Allow for auto vectorization, ParallelForTemplate doesn't support.
 				for (int32 Index = 0; Index < Num; Index++)

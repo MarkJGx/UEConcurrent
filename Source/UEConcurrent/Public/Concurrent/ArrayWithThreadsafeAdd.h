@@ -125,13 +125,13 @@ namespace UE
 				using FArrayBase = TArray<typename FArrayType::ElementType, typename FArrayType::Allocator>;
 
 				// Epic's usage guidelines specify std type traits on UE5; pre-5 the guidelines
-				// were indeterminate, so the Unreal traits are kept there. Purely stylistic.
+				// were indeterminate, so the Unreal traits are kept there.
 #if ENGINE_MAJOR_VERSION >= 5
 				static constexpr bool Value =
-					!std::is_const_v<typename TRemoveReference<ContainerType>::Type> &&
-					std::is_base_of_v<FArrayBase, FArrayType> &&
-					std::is_standard_layout_v<FArrayType> &&
-					!std::is_const_v<typename FArrayType::ElementType>;
+					!std::is_const<typename TRemoveReference<ContainerType>::Type>::value &&
+					std::is_base_of<FArrayBase, FArrayType>::value &&
+					std::is_standard_layout<FArrayType>::value &&
+					!std::is_const<typename FArrayType::ElementType>::value;
 #else
 				static constexpr bool Value =
 					TNot<TIsConst<typename TRemoveReference<ContainerType>::Type>>::Value &&

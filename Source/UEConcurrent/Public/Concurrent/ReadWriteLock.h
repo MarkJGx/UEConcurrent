@@ -8,7 +8,11 @@
 #include "HAL/PlatformAtomics.h"
 #include "HAL/PlatformTLS.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/EngineVersionComparison.h"
 #include "Misc/ScopeLock.h"
+#include "Templates/AreTypesEqual.h"
+#include "Templates/Decay.h"
+#include "Templates/EnableIf.h"
 
 #include <type_traits>
 
@@ -150,8 +154,49 @@ namespace UE
 				return FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId) == CurrentThreadId;
 			}
 
+#if !UE_CONCURRENT_HAS_IF_CONSTEXPR
+			// Fallback for compilers without if constexpr: plain if compiles both branches,
+			// so the state-dependent checks must be well-formed for the disabled state too.
+			// Only the matching overload is ever instantiated.
+			void CheckReadSafety(const UE::Private::FEnabledConcurrentCheck& State)
+			{
+				check(FPlatformAtomics::AtomicRead(&State.ConcurrentWriters) == 0);
+			}
+
+			void CheckReadSafety(const UE::Private::FDisabledConcurrentCheck&)
+			{
+			}
+
+			void CheckWriteExclusivity(const UE::Private::FEnabledConcurrentCheck& State)
+			{
+				check(FPlatformAtomics::AtomicRead(&State.ConcurrentWriters) == 1);
+				check(FPlatformAtomics::AtomicRead(&State.ConcurrentReaders) == 0);
+			}
+
+			void CheckWriteExclusivity(const UE::Private::FDisabledConcurrentCheck&)
+			{
+			}
+#endif
+
 		public:
 			using ElementType = T;
+
+			TReadWriteLock() = default;
+
+			// Perfect forwarding ctor: constructs T from the given arguments, never
+			// hijacking copy/move construction of the lock itself.
+			template <
+				typename ArgType,
+				typename... ArgsType,
+#if ENGINE_MAJOR_VERSION >= 5
+				std::enable_if_t<!std::is_same<std::decay_t<ArgType>, TReadWriteLock>::value, int> = 0>
+#else
+				TEnableIf<!TAreTypesEqual<TDecay<ArgType>::Type, TReadWriteLock>::Value, int>::Type = 0>
+#endif
+			explicit TReadWriteLock(ArgType&& Arg, ArgsType&&... Args)
+				: Type(Forward<ArgType>(Arg), Forward<ArgsType>(Args)...)
+			{
+			}
 
 			/**
 			 * @brief Read unsafe can be used when nothing else is being written to this type.
@@ -162,6 +207,7 @@ namespace UE
 			template <typename FunctionBody>
 			inline void ReadUnsafe(FunctionBody&& Function)
 			{
+#if UE_CONCURRENT_HAS_IF_CONSTEXPR
 				if constexpr (bConcurrencyCheckEnabled)
 				{
 					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -182,6 +228,28 @@ namespace UE
 				{
 					Function((const T&)Type);
 				}
+#else
+				if (bConcurrencyCheckEnabled)
+				{
+					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+					if (IsWriteOwner(CurrentThreadId))
+					{
+						Function((const T&)Type);
+						return;
+					}
+
+					FReadOnlyScope Scope(ReadWriteState);
+
+					// Concurrency check: nothing may be writing while we read.
+					CheckReadSafety(ReadWriteState);
+
+					Function((const T&)Type);
+				}
+				else
+				{
+					Function((const T&)Type);
+				}
+#endif
 			}
 
 			/**
@@ -196,6 +264,7 @@ namespace UE
 			template <typename FunctionBody>
 			inline decltype(auto) ReadUnsafe_Get(FunctionBody&& Function)
 			{
+#if UE_CONCURRENT_HAS_IF_CONSTEXPR
 				if constexpr (bConcurrencyCheckEnabled)
 				{
 					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -215,6 +284,27 @@ namespace UE
 				{
 					return Function((const T&)Type);
 				}
+#else
+				if (bConcurrencyCheckEnabled)
+				{
+					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+					if (IsWriteOwner(CurrentThreadId))
+					{
+						return Function((const T&)Type);
+					}
+
+					FReadOnlyScope Scope(ReadWriteState);
+
+					// Concurrency check: nothing may be writing while we read.
+					CheckReadSafety(ReadWriteState);
+
+					return Function((const T&)Type);
+				}
+				else
+				{
+					return Function((const T&)Type);
+				}
+#endif
 			}
 
 			/**
@@ -226,6 +316,7 @@ namespace UE
 			template <typename FunctionBody>
 			inline void ReadLocked(FunctionBody&& Function)
 			{
+#if UE_CONCURRENT_HAS_IF_CONSTEXPR
 				if constexpr (bConcurrencyCheckEnabled)
 				{
 					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -248,6 +339,30 @@ namespace UE
 					FScopeLock Lock(&Mutex);
 					Function((const T&)Type);
 				}
+#else
+				if (bConcurrencyCheckEnabled)
+				{
+					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+					if (IsWriteOwner(CurrentThreadId))
+					{
+						Function((const T&)Type);
+						return;
+					}
+
+					FScopeLock Lock(&Mutex);
+					FReadOnlyScope ReadScope(ReadWriteState);
+
+					// Concurrency check: nothing may be writing while we read.
+					CheckReadSafety(ReadWriteState);
+
+					Function((const T&)Type);
+				}
+				else
+				{
+					FScopeLock Lock(&Mutex);
+					Function((const T&)Type);
+				}
+#endif
 			}
 
 			/**
@@ -260,13 +375,14 @@ namespace UE
 			inline decltype(auto) ReadLocked_Get(FunctionBody&& Function)
 			{
 				using FGuardReturn = decltype(Function((const T&)Type));
-				static_assert(!std::is_reference_v<FGuardReturn>,
+				static_assert(!std::is_reference<FGuardReturn>::value,
 					"Cannot return a reference out of ReadLocked_Get, the lock is released before you can use it. "
 					"Consume it inside the callable, or use ReadUnsafe_Get if you can guarantee no writer is live.");
-				static_assert(!std::is_pointer_v<FGuardReturn>,
+				static_assert(!std::is_pointer<FGuardReturn>::value,
 					"Cannot return a pointer out of ReadLocked_Get, the lock is released before you can use it. "
 					"Consume it inside the callable, or use ReadUnsafe_Get if you can guarantee no writer is live.");
 
+#if UE_CONCURRENT_HAS_IF_CONSTEXPR
 				if constexpr (bConcurrencyCheckEnabled)
 				{
 					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -288,6 +404,29 @@ namespace UE
 					FScopeLock Lock(&Mutex);
 					return Function((const T&)Type);
 				}
+#else
+				if (bConcurrencyCheckEnabled)
+				{
+					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+					if (IsWriteOwner(CurrentThreadId))
+					{
+						return Function((const T&)Type);
+					}
+
+					FScopeLock Lock(&Mutex);
+					FReadOnlyScope ReadScope(ReadWriteState);
+
+					// Concurrency check: nothing may be writing while we read.
+					CheckReadSafety(ReadWriteState);
+
+					return Function((const T&)Type);
+				}
+				else
+				{
+					FScopeLock Lock(&Mutex);
+					return Function((const T&)Type);
+				}
+#endif
 			}
 
 			/**
@@ -299,6 +438,7 @@ namespace UE
 			template <typename FunctionBody>
 			inline void ReadWriteLocked(FunctionBody&& Function)
 			{
+#if UE_CONCURRENT_HAS_IF_CONSTEXPR
 				if constexpr (bConcurrencyCheckEnabled)
 				{
 					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -329,6 +469,37 @@ namespace UE
 					FScopeLock Lock(&Mutex);
 					Function(Type);
 				}
+#else
+				if (bConcurrencyCheckEnabled)
+				{
+					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+
+					// Recursion: the same thread may re-enter its own write scope.
+					if (IsWriteOwner(CurrentThreadId))
+					{
+						RuntimeWriteDepth++;
+						Function(Type);
+						RuntimeWriteDepth--;
+						return;
+					}
+
+					FScopeLock Lock(&Mutex);
+					FWriteOnlyScope WriteScope(ReadWriteState);
+
+					// Concurrency checks: a write is exclusive against every other write and every read.
+					CheckWriteExclusivity(ReadWriteState);
+					check(FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId) == 0);
+
+					FWriteOwnerScope OwnerScope(RuntimeWriteOwnerThreadId, RuntimeWriteDepth, CurrentThreadId);
+
+					Function(Type);
+				}
+				else
+				{
+					FScopeLock Lock(&Mutex);
+					Function(Type);
+				}
+#endif
 			}
 
 			/**
@@ -341,13 +512,14 @@ namespace UE
 			inline decltype(auto) ReadWriteLocked_Get(FunctionBody&& Function)
 			{
 				using FGuardReturn = decltype(Function(Type));
-				static_assert(!std::is_reference_v<FGuardReturn>,
+				static_assert(!std::is_reference<FGuardReturn>::value,
 					"Cannot return a reference out of ReadWriteLocked_Get, the lock is released before you can use it "
 					"and the reference is mutable. Consume it inside the callable.");
-				static_assert(!std::is_pointer_v<FGuardReturn>,
+				static_assert(!std::is_pointer<FGuardReturn>::value,
 					"Cannot return a pointer out of ReadWriteLocked_Get, the lock is released before you can use it "
 					"and the pointer is mutable. Consume it inside the callable.");
 
+#if UE_CONCURRENT_HAS_IF_CONSTEXPR
 				if constexpr (bConcurrencyCheckEnabled)
 				{
 					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -376,6 +548,35 @@ namespace UE
 					FScopeLock Lock(&Mutex);
 					return Function(Type);
 				}
+#else
+				if (bConcurrencyCheckEnabled)
+				{
+					const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+
+					// Recursion: the same thread may re-enter its own write scope.
+					if (IsWriteOwner(CurrentThreadId))
+					{
+						FRecursiveWriteScope RecursiveScope(RuntimeWriteDepth);
+						return Function(Type);
+					}
+
+					FScopeLock Lock(&Mutex);
+					FWriteOnlyScope WriteScope(ReadWriteState);
+
+					// Concurrency checks: a write is exclusive against every other write and every read.
+					CheckWriteExclusivity(ReadWriteState);
+					check(FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId) == 0);
+
+					FWriteOwnerScope OwnerScope(RuntimeWriteOwnerThreadId, RuntimeWriteDepth, CurrentThreadId);
+
+					return Function(Type);
+				}
+				else
+				{
+					FScopeLock Lock(&Mutex);
+					return Function(Type);
+				}
+#endif
 			}
 		};
 	}
