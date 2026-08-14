@@ -147,15 +147,24 @@ namespace UE
 				FConcurrent ReadWriteState;
 				FCriticalSection Mutex;
 
-				// Runtime recursion state, used only in checked builds: the thread holding the
-				// outermost write scope (0 = none; thread ids are never 0) and the same-thread
-				// write re-entry depth.
-				uint32 RuntimeWriteOwnerThreadId = 0;
+				// Runtime recursion state: the write scope's owner thread id (0 = none) and
+				// its re-entry depth. Only compiled out when checks are off and if constexpr
+				// is available.
+#if DO_CHECK
+				int32 RuntimeWriteOwnerThreadId = 0;
 				int32 RuntimeWriteDepth = 0;
+#elif !UE_CONCURRENT_HAS_IF_CONSTEXPR
+				int32 RuntimeWriteOwnerThreadId = 0;
+				int32 RuntimeWriteDepth = 0;
+#endif
 
 				bool IsWriteOwner(uint32 CurrentThreadId) const
 				{
-					return FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId) == CurrentThreadId;
+#if DO_CHECK || !UE_CONCURRENT_HAS_IF_CONSTEXPR
+					return uint32(FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId)) == CurrentThreadId;
+#else
+					return false;
+#endif
 				}
 
 #if !UE_CONCURRENT_HAS_IF_CONSTEXPR
