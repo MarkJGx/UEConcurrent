@@ -180,6 +180,40 @@ bool FLockDisabledChecksTest::RunTest(const FString& Parameters)
 	});
 	TestEqual(TEXT("disabled-check view still synchronizes"), Field, 7);
 
+#if !DO_CHECK
+	UE::Concurrent::TReadWriteLock<int32, true> ExplicitCheckedLock;
+	ExplicitCheckedLock.ReadUnsafe([](const int32&)
+	{
+	});
+	ExplicitCheckedLock.ReadUnsafe_Get([](const int32& Value)
+	{
+		return Value;
+	});
+	ExplicitCheckedLock.ReadLocked([](const int32&)
+	{
+	});
+	ExplicitCheckedLock.ReadLocked_Get([](const int32& Value)
+	{
+		return Value;
+	});
+	ExplicitCheckedLock.ReadWriteLocked([](int32& Value)
+	{
+		Value = 9;
+	});
+	TestEqual(TEXT("explicit checked lock compiles and writes in shipping"), ExplicitCheckedLock.ReadLocked_Get([](const int32& Value)
+	{
+		return Value;
+	}), 9);
+
+	int32 ExplicitCheckedField = 0;
+	UE::Concurrent::TReadWriteLockView<int32, true> ExplicitCheckedView(ExplicitCheckedField);
+	ExplicitCheckedView.ReadWriteLocked([](int32& Value)
+	{
+		Value = 13;
+	});
+	TestEqual(TEXT("explicit checked view compiles and writes in shipping"), ExplicitCheckedField, 13);
+#endif
+
 	return true;
 }
 

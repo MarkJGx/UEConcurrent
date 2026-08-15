@@ -88,6 +88,103 @@ namespace UE
 					}
 				};
 			};
+
+#if DO_CHECK
+			struct FDevelopmentWriteState
+			{
+				struct FRecursiveWriteScope
+				{
+					FDevelopmentWriteState& State;
+
+					explicit FRecursiveWriteScope(FDevelopmentWriteState& InState) : State(InState)
+					{
+						State.IncrementWriteDepth();
+					}
+
+					~FRecursiveWriteScope()
+					{
+						State.DecrementWriteDepth();
+					}
+				};
+
+				struct FWriteOwnerScope
+				{
+					FDevelopmentWriteState& State;
+					const int32 ThreadId;
+
+					explicit FWriteOwnerScope(FDevelopmentWriteState& InState, uint32 InThreadId)
+						: State(InState), ThreadId(int32(InThreadId))
+					{
+						FPlatformAtomics::InterlockedExchange(&State.RuntimeWriteOwnerThreadId, ThreadId);
+						State.RuntimeWriteDepth = 1;
+					}
+
+					~FWriteOwnerScope()
+					{
+						State.RuntimeWriteDepth = 0;
+						FPlatformAtomics::InterlockedExchange(&State.RuntimeWriteOwnerThreadId, 0);
+					}
+				};
+
+				int32 RuntimeWriteOwnerThreadId = 0;
+				int32 RuntimeWriteDepth = 0;
+
+				bool IsWriteOwner(uint32 CurrentThreadId) const
+				{
+					return uint32(FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId)) == CurrentThreadId;
+				}
+
+				void IncrementWriteDepth()
+				{
+					RuntimeWriteDepth++;
+				}
+
+				void DecrementWriteDepth()
+				{
+					RuntimeWriteDepth--;
+				}
+
+				bool IsWriteOwnerClear() const
+				{
+					return FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId) == 0;
+				}
+			};
+#else
+			struct FDevelopmentWriteState
+			{
+				struct FRecursiveWriteScope
+				{
+					explicit FRecursiveWriteScope(FDevelopmentWriteState&)
+					{
+					}
+				};
+
+				struct FWriteOwnerScope
+				{
+					explicit FWriteOwnerScope(FDevelopmentWriteState&, uint32)
+					{
+					}
+				};
+
+				bool IsWriteOwner(uint32) const
+				{
+					return false;
+				}
+
+				void IncrementWriteDepth()
+				{
+				}
+
+				void DecrementWriteDepth()
+				{
+				}
+
+				bool IsWriteOwnerClear() const
+				{
+					return true;
+				}
+			};
+#endif
 		}
 	}
 
@@ -112,63 +209,12 @@ namespace UE
 				using FReadOnlyScope = typename FConcurrent::FScopedConcurrentReadCheck;
 				using FWriteOnlyScope = typename FConcurrent::FScopedConcurrentWriteCheck;
 
-				struct FRecursiveWriteScope
-				{
-					int32& Depth;
-
-					explicit FRecursiveWriteScope(int32& InDepth) : Depth(InDepth)
-					{
-						Depth++;
-					}
-
-					~FRecursiveWriteScope()
-					{
-						Depth--;
-					}
-				};
-
-				struct FWriteOwnerScope
-				{
-					int32& OwnerThreadId;
-					int32& WriteDepth;
-					const int32 ThreadId;
-
-					explicit FWriteOwnerScope(int32& InOwnerThreadId, int32& InWriteDepth, uint32 InThreadId)
-						: OwnerThreadId(InOwnerThreadId), WriteDepth(InWriteDepth), ThreadId(int32(InThreadId))
-					{
-						FPlatformAtomics::InterlockedExchange(&OwnerThreadId, ThreadId);
-						WriteDepth = 1;
-					}
-
-					~FWriteOwnerScope()
-					{
-						WriteDepth = 0;
-						FPlatformAtomics::InterlockedExchange(&OwnerThreadId, 0);
-					}
-				};
+				using FRecursiveWriteScope = FDevelopmentWriteState::FRecursiveWriteScope;
+				using FWriteOwnerScope = FDevelopmentWriteState::FWriteOwnerScope;
 
 				FConcurrent ReadWriteState;
 				FCriticalSection Mutex;
-
-				// Runtime recursion state: the write scope's owner thread id (0 = none) and
-				// its re-entry depth. Only compiled out when checks are off and if constexpr
-				// is available.
-#if DO_CHECK
-				int32 RuntimeWriteOwnerThreadId = 0;
-				int32 RuntimeWriteDepth = 0;
-#elif !UE_CONCURRENT_HAS_IF_CONSTEXPR
-				int32 RuntimeWriteOwnerThreadId = 0;
-				int32 RuntimeWriteDepth = 0;
-#endif
-
-				bool IsWriteOwner(uint32 CurrentThreadId) const
-				{
-#if DO_CHECK || !UE_CONCURRENT_HAS_IF_CONSTEXPR
-					return uint32(FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId)) == CurrentThreadId;
-#else
-					return false;
-#endif
-				}
+				FDevelopmentWriteState RuntimeWriteState;
 
 #if !UE_CONCURRENT_HAS_IF_CONSTEXPR
 				// Only for compilers without if constexpr: plain if compiles both branches,
@@ -210,7 +256,7 @@ namespace UE
 					if constexpr (bConcurrencyCheckEnabled)
 					{
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
 							Function((const T&)Type);
 							return;
@@ -231,7 +277,7 @@ namespace UE
 					if (bConcurrencyCheckEnabled)
 					{
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
 							Function((const T&)Type);
 							return;
@@ -269,7 +315,7 @@ namespace UE
 					if constexpr (bConcurrencyCheckEnabled)
 					{
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
 							return Function((const T&)Type);
 						}
@@ -289,7 +335,7 @@ namespace UE
 					if (bConcurrencyCheckEnabled)
 					{
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
 							return Function((const T&)Type);
 						}
@@ -323,7 +369,7 @@ namespace UE
 					if constexpr (bConcurrencyCheckEnabled)
 					{
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
 							Function((const T&)Type);
 							return;
@@ -346,7 +392,7 @@ namespace UE
 					if (bConcurrencyCheckEnabled)
 					{
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
 							Function((const T&)Type);
 							return;
@@ -391,7 +437,7 @@ namespace UE
 					if constexpr (bConcurrencyCheckEnabled)
 					{
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
 							return Function((const T&)Type);
 						}
@@ -413,7 +459,7 @@ namespace UE
 					if (bConcurrencyCheckEnabled)
 					{
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
 							return Function((const T&)Type);
 						}
@@ -454,11 +500,11 @@ namespace UE
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
 
 						// Recursion: the same thread may re-enter its own write scope.
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
-							RuntimeWriteDepth++;
+							RuntimeWriteState.IncrementWriteDepth();
 							Function(Type);
-							RuntimeWriteDepth--;
+							RuntimeWriteState.DecrementWriteDepth();
 							return;
 						}
 
@@ -468,9 +514,9 @@ namespace UE
 						// Concurrency checks: a write is exclusive against every other write and every read.
 						check(FPlatformAtomics::AtomicRead(&ReadWriteState.ConcurrentWriters) == 1);
 						check(FPlatformAtomics::AtomicRead(&ReadWriteState.ConcurrentReaders) == 0);
-						check(FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId) == 0);
+						check(RuntimeWriteState.IsWriteOwnerClear());
 
-						FWriteOwnerScope OwnerScope(RuntimeWriteOwnerThreadId, RuntimeWriteDepth, CurrentThreadId);
+						FWriteOwnerScope OwnerScope(RuntimeWriteState, CurrentThreadId);
 
 						Function(Type);
 					}
@@ -485,11 +531,11 @@ namespace UE
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
 
 						// Recursion: the same thread may re-enter its own write scope.
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
-							RuntimeWriteDepth++;
+							RuntimeWriteState.IncrementWriteDepth();
 							Function(Type);
-							RuntimeWriteDepth--;
+							RuntimeWriteState.DecrementWriteDepth();
 							return;
 						}
 
@@ -498,9 +544,9 @@ namespace UE
 
 						// Concurrency checks: a write is exclusive against every other write and every read.
 						CheckWriteExclusivity(ReadWriteState);
-						check(FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId) == 0);
+						check(RuntimeWriteState.IsWriteOwnerClear());
 
-						FWriteOwnerScope OwnerScope(RuntimeWriteOwnerThreadId, RuntimeWriteDepth, CurrentThreadId);
+						FWriteOwnerScope OwnerScope(RuntimeWriteState, CurrentThreadId);
 
 						Function(Type);
 					}
@@ -539,9 +585,9 @@ namespace UE
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
 
 						// Recursion: the same thread may re-enter its own write scope.
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
-							FRecursiveWriteScope RecursiveScope(RuntimeWriteDepth);
+							FRecursiveWriteScope RecursiveScope(RuntimeWriteState);
 							return Function(Type);
 						}
 
@@ -551,9 +597,9 @@ namespace UE
 						// Concurrency checks: a write is exclusive against every other write and every read.
 						check(FPlatformAtomics::AtomicRead(&ReadWriteState.ConcurrentWriters) == 1);
 						check(FPlatformAtomics::AtomicRead(&ReadWriteState.ConcurrentReaders) == 0);
-						check(FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId) == 0);
+						check(RuntimeWriteState.IsWriteOwnerClear());
 
-						FWriteOwnerScope OwnerScope(RuntimeWriteOwnerThreadId, RuntimeWriteDepth, CurrentThreadId);
+						FWriteOwnerScope OwnerScope(RuntimeWriteState, CurrentThreadId);
 
 						return Function(Type);
 					}
@@ -568,9 +614,9 @@ namespace UE
 						const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
 
 						// Recursion: the same thread may re-enter its own write scope.
-						if (IsWriteOwner(CurrentThreadId))
+						if (RuntimeWriteState.IsWriteOwner(CurrentThreadId))
 						{
-							FRecursiveWriteScope RecursiveScope(RuntimeWriteDepth);
+							FRecursiveWriteScope RecursiveScope(RuntimeWriteState);
 							return Function(Type);
 						}
 
@@ -579,9 +625,9 @@ namespace UE
 
 						// Concurrency checks: a write is exclusive against every other write and every read.
 						CheckWriteExclusivity(ReadWriteState);
-						check(FPlatformAtomics::AtomicRead(&RuntimeWriteOwnerThreadId) == 0);
+						check(RuntimeWriteState.IsWriteOwnerClear());
 
-						FWriteOwnerScope OwnerScope(RuntimeWriteOwnerThreadId, RuntimeWriteDepth, CurrentThreadId);
+						FWriteOwnerScope OwnerScope(RuntimeWriteState, CurrentThreadId);
 
 						return Function(Type);
 					}

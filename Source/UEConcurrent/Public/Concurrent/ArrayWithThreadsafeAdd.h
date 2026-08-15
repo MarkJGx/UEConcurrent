@@ -153,13 +153,22 @@ namespace UE
 					"AddToArrayThreadSafe requires a non-const, standard-layout TArray with non-const elements!");
 
 				using ArrayType = typename TRemoveCV<typename TRemoveReference<decltype(Array)>::Type>::Type;
+				// TODO: Replace this layout-compatible cast with std::bit_cast when C++20 is the minimum standard.
+				// std::bit_cast is unavailable to the UE4/C++14 target and cannot currently preserve this helper API.
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4946)
+#endif
 				TArrayWithThreadSafeAddHack<ArrayType>* ThreadSafeArray = reinterpret_cast<TArrayWithThreadSafeAddHack<ArrayType>
 					*>(&Array);
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 #if DO_CHECK
 				auto* DataPreAdd = Array.GetData();
 #endif
-				const int32 Index = ThreadSafeArray->AddThreadSafe(Forward<ContainerElement>(Element));
+				const typename ContainerType::SizeType Index = ThreadSafeArray->AddThreadSafe(Forward<ContainerElement>(Element));
 #if DO_CHECK
 				auto* DataPostAdd = Array.GetData();
 				checkf(DataPreAdd == DataPostAdd,
