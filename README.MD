@@ -10,12 +10,15 @@ UEConcurrent is a header-only library of concurrency primitives for Unreal Engin
 // unsafe reads with runtime thread safety assertions.
 
 
-using FActorComponentPrimitivesLayout = TArray<FProceduralStaticMeshComponentPrimitive, TInlineAllocator<3>>;
+using FActorComponentPrimitivesLayout =
+	TArray<FProceduralStaticMeshComponentPrimitive, TInlineAllocator<3>>;
 UE::Concurrent::TReadWriteLock
-	<Experimental::TRobinHoodHashMap<TSubclassOf<AActor>, FActorComponentPrimitivesLayout>> ActorToPrimitiveComponentLayout;
+	<Experimental::TRobinHoodHashMap<TSubclassOf<AActor>, FActorComponentPrimitivesLayout>>
+	ActorToPrimitiveComponentLayout;
 
 ActorToPrimitiveComponentLayout.ReadWriteLocked(
-[&UniqueEncounteredActors](typename decltype(ActorToPrimitiveComponentLayout)::ElementType& Map)
+[&UniqueEncounteredActors](
+	typename decltype(ActorToPrimitiveComponentLayout)::ElementType& Map)
 {
 	// Map writing isn't thread safe! So read write locked.
 	Map.Reserve(UniqueEncounteredActors.Num());
@@ -62,7 +65,9 @@ ActorToPrimitiveComponentLayout.ReadWriteLocked(
 // do not coordinate with each other.
 TArray<FProceduralStaticMeshComponentPrimitive>& GlobalPrimitiveLayout = ...;
 
-UE::Concurrent::TReadWriteLockView<TArray<FProceduralStaticMeshComponentPrimitive>> PrimitiveLayoutView(GlobalPrimitiveLayout);
+UE::Concurrent::TReadWriteLockView<
+	TArray<FProceduralStaticMeshComponentPrimitive>>
+	PrimitiveLayoutView(GlobalPrimitiveLayout);
 
 PrimitiveLayoutView.ReadWriteLocked(
 	[&SpawnTask](auto& PrimitiveLayout)
@@ -74,7 +79,8 @@ PrimitiveLayoutView.ReadWriteLocked(
 ### UE::Concurrent::InlineParallelFor
 ```cpp
 // Allows for quick testing of compiler vectorized
-// non parallel variant through template magic, simply swap to <EParallelForFlags::ForceSingleThread>
+// non parallel variant through template magic; simply swap to
+// <EParallelForFlags::ForceSingleThread>
 // No runtime cost at all.
 
 UE::Concurrent::TReadWriteLock<
@@ -82,13 +88,15 @@ UE::Concurrent::TReadWriteLock<
 {
 	TArray<TSubclassOf<AActor>> ActorsEncountered = UniqueActorsEncountered.Array();
 	UE::Concurrent::InlineParallelFor<EParallelForFlags::None>(
-		ActorsEncountered.Num(), [this, &ActorsEncountered, &BoundsMap](int32 Index)
+		ActorsEncountered.Num(),
+		[this, &ActorsEncountered, &BoundsMap](int32 Index)
 		{
 			const TSubclassOf<AActor>& ActorClass = ActorsEncountered[Index];
 			// Read actor bounds (thread safe and expensive)
 
 			// NB: UE::Actor::GetActorTemplateLocalBounds is not included! 
-			FPaddedBox3f CalculatedBounds = UE::Actor::GetActorTemplateLocalBounds(ActorClass);
+			FPaddedBox3f CalculatedBounds =
+				UE::Actor::GetActorTemplateLocalBounds(ActorClass);
 
 			BoundsMap.ReadWriteLocked([&ActorClass, &CalculatedBounds](auto& Map)
 			{
@@ -106,7 +114,8 @@ UE::Concurrent::TReadWriteLock<
 PrimitiveKeys.Reserve(Components.Num());
 UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
 	Components,
-	[&PrimitiveKeys, &ActorToPrimitiveComponentLayout, this](UStaticMeshComponent* MeshComponent)
+	[&PrimitiveKeys, &ActorToPrimitiveComponentLayout, this](
+		UStaticMeshComponent* MeshComponent)
 	{
 		if (MeshComponent->GetStaticMesh())
 		{
@@ -125,7 +134,8 @@ UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
 TArray64<FProceduralStaticMeshComponentPrimitive> PrimitiveKeys64;
 PrimitiveKeys64.Reserve(Components.Num());
 
-const int64 Index = UE::Concurrent::AddToArrayThreadSafe(PrimitiveKeys64, MoveTemp(PrimitiveKey));
+const int64 Index = UE::Concurrent::AddToArrayThreadSafe(
+	PrimitiveKeys64, MoveTemp(PrimitiveKey));
 check(Index != INDEX_NONE);
 ```
 
@@ -133,9 +143,11 @@ check(Index != INDEX_NONE);
 ### Complete snippet of most primitives being used in tandem:
 
 ```cpp
-using FActorComponentPrimitivesLayout = TArray<FProceduralStaticMeshComponentPrimitive, TInlineAllocator<3>>;
+using FActorComponentPrimitivesLayout =
+	TArray<FProceduralStaticMeshComponentPrimitive, TInlineAllocator<3>>;
 UE::Concurrent::TReadWriteLock
-	<Experimental::TRobinHoodHashMap<TSubclassOf<AActor>, FActorComponentPrimitivesLayout>> ActorToPrimitiveComponentLayout;
+	<Experimental::TRobinHoodHashMap<TSubclassOf<AActor>, FActorComponentPrimitivesLayout>>
+	ActorToPrimitiveComponentLayout;
 
 // Extract primitive 
 {
@@ -148,11 +160,13 @@ UE::Concurrent::TReadWriteLock
 
 
 	// Iterate through unique actors
-	UE::Concurrent::InlineParallelFor<EParallelForFlags::None>(UniqueEncounteredActors.Num(),
-	 [this, &ActorToPrimitiveComponentLayout, UniqueEncounteredActors](int32 Index)
+	UE::Concurrent::InlineParallelFor<EParallelForFlags::None>(
+		UniqueEncounteredActors.Num(),
+		[this, &ActorToPrimitiveComponentLayout, UniqueEncounteredActors](int32 Index)
 	{
 		const TSubclassOf<AActor>& ActorClass = UniqueEncounteredActors[Index];
-		auto Components = UE::Actor::GetClassComponentTemplates<UStaticMeshComponent>(ActorClass);
+		auto Components =
+			UE::Actor::GetClassComponentTemplates<UStaticMeshComponent>(ActorClass);
 
 		if(Components.Num() > 0)
 		{
@@ -162,7 +176,8 @@ UE::Concurrent::TReadWriteLock
 			PrimitiveKeys.Reserve(Components.Num());
 			UE::Concurrent::InlineParallelForEach<EParallelForFlags::None>(
 				Components,
-				[&PrimitiveKeys, &ActorToPrimitiveComponentLayout, this](UStaticMeshComponent* MeshComponent)
+				[&PrimitiveKeys, &ActorToPrimitiveComponentLayout, this](
+					UStaticMeshComponent* MeshComponent)
 				{
 					if (MeshComponent->GetStaticMesh())
 					{
@@ -184,16 +199,19 @@ UE::Concurrent::TReadWriteLock
 	});
 }
 
-UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(ActorsGrid.GetData().Num(),
- [this, &ActorsGrid, &ActorToPrimitiveComponentLayout](int32 TileIndex)
+UE::Concurrent::InlineParallelFor<EParallelForFlags::ForceSingleThread>(
+	ActorsGrid.GetData().Num(),
+	[this, &ActorsGrid, &ActorToPrimitiveComponentLayout](int32 TileIndex)
 {
-	FBadLadsProceduralGenerationState::FActorGrid::ElementType& SpawnGroup = ActorsGrid.GetData()[TileIndex];
+	FBadLadsProceduralGenerationState::FActorGrid::ElementType& SpawnGroup =
+		ActorsGrid.GetData()[TileIndex];
 	
 	for (const FBadLadsAsyncActorSpawnTask& SpawnTask : SpawnGroup)
 	{
 		const FActorComponentPrimitivesLayout* PrimitiveLayouts;
 
-		ActorToPrimitiveComponentLayout.ReadUnsafe([&ActorToPrimitiveComponentLayout, &PrimitiveLayouts, &SpawnTask](const auto& Map)
+		ActorToPrimitiveComponentLayout.ReadUnsafe(
+			[&ActorToPrimitiveComponentLayout, &PrimitiveLayouts, &SpawnTask](const auto& Map)
 		{
 			PrimitiveLayouts = Map.Find(SpawnTask.ActorToSpawn);
 		});
