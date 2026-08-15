@@ -252,3 +252,4 @@ UE4Editor <PathToProject>/<ProjectName>.uproject -unattended -nullrhi -onethread
 - Note the implementation details and measure the cost on target platforms for locking strategies.
 - Create drop in wrapper for robin hood (round robin) hash maps/set that is API compatible with TSet/TMap. Matching allocator strategy might be tricky. 
 - Measure compile time impact of templates here and make sure it's kept on record. A template permutation could make supported compilers spit out exponentially more code gen and worsen compile times substantially. 
+- Prototype an alternative parallel-for backed by Unreal's task graph to reduce launch overhead, with cache-line-aware bucketing selected from the element type.
