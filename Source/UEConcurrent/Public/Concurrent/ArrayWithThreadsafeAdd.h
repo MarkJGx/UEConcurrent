@@ -153,8 +153,6 @@ namespace UE
 					"AddToArrayThreadSafe requires a non-const, standard-layout TArray with non-const elements!");
 
 				using ArrayType = typename TRemoveCV<typename TRemoveReference<decltype(Array)>::Type>::Type;
-				// TODO: Replace this layout-compatible cast with std::bit_cast when C++20 is the minimum standard.
-				// std::bit_cast is unavailable to the UE4/C++14 target and cannot currently preserve this helper API.
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4946)
