@@ -1,4 +1,4 @@
-// Copyright @MarkJGx 2024
+// Copyright MarkJGx 2024-2026
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;

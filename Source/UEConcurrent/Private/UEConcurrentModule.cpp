@@ -1,4 +1,4 @@
-// Copyright @MarkJGx 2024
+// Copyright MarkJGx 2024-2026
 
 #include "UEConcurrentModule.h"
 #include "Modules/ModuleManager.h"

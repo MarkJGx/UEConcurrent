@@ -1,4 +1,4 @@
-// Copyright 2024 @MarkJGx 
+// Copyright MarkJGx 2024-2026
 
 #pragma once
 
