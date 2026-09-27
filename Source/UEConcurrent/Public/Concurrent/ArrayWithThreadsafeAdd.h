@@ -10,7 +10,6 @@
 #include "Misc/EngineVersionComparison.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/IsConst.h"
-#include "Templates/RemoveCV.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
@@ -121,8 +120,12 @@ namespace UE
 			template <typename ContainerType>
 			struct TIsThreadSafeAddableArray
 			{
-				using FArrayType = typename TRemoveCV<typename TRemoveReference<ContainerType>::Type>::Type;
+				using FArrayType = std::remove_cv_t<typename TRemoveReference<ContainerType>::Type>;
+#if ENGINE_MAJOR_VERSION >= 5
+				using FArrayBase = TArray<typename FArrayType::ElementType, typename FArrayType::AllocatorType>;
+#else
 				using FArrayBase = TArray<typename FArrayType::ElementType, typename FArrayType::Allocator>;
+#endif
 
 				// Epic's usage guidelines specify std type traits on UE5; pre-5 the guidelines
 				// were indeterminate, so the Unreal traits are kept there.
@@ -152,7 +155,7 @@ namespace UE
 				static_assert(TIsThreadSafeAddableArray<ContainerType>::Value,
 					"AddToArrayThreadSafe requires a non-const, standard-layout TArray with non-const elements!");
 
-				using ArrayType = typename TRemoveCV<typename TRemoveReference<decltype(Array)>::Type>::Type;
+				using ArrayType = std::remove_cv_t<typename TRemoveReference<decltype(Array)>::Type>;
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4946)

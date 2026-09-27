@@ -10,7 +10,6 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Misc/ScopeLock.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/Decay.h"
 #include "Templates/EnableIf.h"
 
@@ -670,7 +669,7 @@ namespace UE
 #if ENGINE_MAJOR_VERSION >= 5
 				std::enable_if_t<!std::is_same<std::decay_t<ArgType>, TReadWriteLock>::value, int> = 0>
 #else
-				typename TEnableIf<!TAreTypesEqual<typename TDecay<ArgType>::Type, TReadWriteLock>::Value, int>::Type = 0>
+				typename TEnableIf<!std::is_same_v<typename TDecay<ArgType>::Type, TReadWriteLock>, int>::Type = 0>
 #endif
 			explicit TReadWriteLock(ArgType&& Arg, ArgsType&&... Args)
 				: Type(Forward<ArgType>(Arg), Forward<ArgsType>(Args)...)
@@ -685,37 +684,37 @@ namespace UE
 			template <typename FunctionBody>
 			inline void ReadUnsafe(FunctionBody&& Function)
 			{
-				ReadUnsafeImpl(Type, Function);
+				this->ReadUnsafeImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline decltype(auto) ReadUnsafe_Get(FunctionBody&& Function)
 			{
-				return ReadUnsafe_GetImpl(Type, Function);
+				return this->ReadUnsafe_GetImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline void ReadLocked(FunctionBody&& Function)
 			{
-				ReadLockedImpl(Type, Function);
+				this->ReadLockedImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline decltype(auto) ReadLocked_Get(FunctionBody&& Function)
 			{
-				return ReadLocked_GetImpl(Type, Function);
+				return this->ReadLocked_GetImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline void ReadWriteLocked(FunctionBody&& Function)
 			{
-				ReadWriteLockedImpl(Type, Function);
+				this->ReadWriteLockedImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline decltype(auto) ReadWriteLocked_Get(FunctionBody&& Function)
 			{
-				return ReadWriteLocked_GetImpl(Type, Function);
+				return this->ReadWriteLocked_GetImpl(Type, Function);
 			}
 
 		private:
@@ -751,37 +750,37 @@ namespace UE
 			template <typename FunctionBody>
 			inline void ReadUnsafe(FunctionBody&& Function)
 			{
-				ReadUnsafeImpl(Type, Function);
+				this->ReadUnsafeImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline decltype(auto) ReadUnsafe_Get(FunctionBody&& Function)
 			{
-				return ReadUnsafe_GetImpl(Type, Function);
+				return this->ReadUnsafe_GetImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline void ReadLocked(FunctionBody&& Function)
 			{
-				ReadLockedImpl(Type, Function);
+				this->ReadLockedImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline decltype(auto) ReadLocked_Get(FunctionBody&& Function)
 			{
-				return ReadLocked_GetImpl(Type, Function);
+				return this->ReadLocked_GetImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline void ReadWriteLocked(FunctionBody&& Function)
 			{
-				ReadWriteLockedImpl(Type, Function);
+				this->ReadWriteLockedImpl(Type, Function);
 			}
 
 			template <typename FunctionBody>
 			inline decltype(auto) ReadWriteLocked_Get(FunctionBody&& Function)
 			{
-				return ReadWriteLocked_GetImpl(Type, Function);
+				return this->ReadWriteLocked_GetImpl(Type, Function);
 			}
 
 		private:
